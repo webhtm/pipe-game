@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Water Pipe Game</title>
+    <style>
+        :root {
+            --bg-dark: #0b1120;
+            --bg-panel: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --pipe-base: #475569;
+            --pipe-dark: #334155;
+            /* Water Specials Colors */
+            --water: #00e5ff;
+            --water-glow: 0 0 12px rgba(0, 229, 255, 0.8);
+            --water-bright: #ffffff;
+            --obstacle: #0f172a;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            
+            /* Main Game Font */
+            --font-main: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at 50% 50%, #1e293b 0%, #0b1120 100%);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            /* Prevents pull-to-refresh on mobile devices */
+            overscroll-behavior: none; 
+            overflow: hidden;
+        }
+
+        h1, h2, .title-font {
+            font-family: var(--font-main);
+            font-weight: 900;
+        }
+
+        /* Screen Management with Dynamic Scaling */
+        .screen {
+            display: none;
+            width: 100%;
+            /* Allow it to stretch wide but cap it on huge monitors */
+            max-width: 650px; 
+            padding: clamp(10px, 3vw, 20px);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            height: 100vh;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: translateY(30px) scale(0.9); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Typography & UI */
+        .title {
+            /* Dynamically scales with viewport to avoid pushing UI off-screen */
+            font-size: clamp(2.5rem, 10vmin, 4rem);
+            color: var(--water);
+            text-shadow: var(--water-glow);
+            margin-bottom: clamp(20px, 5vh, 40px);
+            text-align: center;
+            letter-spacing: 2px;
+            line-height: 1.1;
+        }
+
+        .title span {
+            color: var(--text-main);
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            font-size: clamp(1.5rem, 6vmin, 2.5rem);
+            display: block;
+            margin-top: -5px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--bg-panel), #0f172a);
+            color: var(--text-main);
+            border: 2px solid var(--pipe-base);
+            padding: clamp(12px, 2vh, 18px) clamp(20px, 4vw, 36px);
+            font-size: clamp(1rem, 4vmin, 1.3rem);
+            font-weight: bold;
+            border-radius: 14px;
+            cursor: pointer;
+            margin: clamp(8px, 1.5vh, 12px) 0;
+            width: 85%;
+            max-width: 360px;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-family: var(--font-main);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+
+        .btn:hover {
+            border-color: var(--water);
+            box-shadow: 0 8px 25px rgba(0, 229, 255, 0.3);
+            transform: translateY(-4px) scale(1.02);
+        }
+
+        .btn:active {
+            transform: translateY(2px) scale(0.98);
+        }
+
+        .btn.primary {
+            background: rgba(0, 229, 255, 0.1);
+            border-color: var(--water);
+            color: var(--water);
+            text-shadow: 0 0 5px rgba(0, 229, 255, 0.3);
+        }
+        
+        .btn.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .icon-btn {
+            background: var(--bg-panel);
+            border: 2px solid var(--pipe-base);
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: clamp(8px, 2vw, 12px);
+            border-radius: 14px;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .icon-btn svg { 
+            width: clamp(20px, 5vmin, 28px); 
+            height: clamp(20px, 5vmin, 28px); 
+            fill: currentColor; 
+        }
+        
+        .icon-btn:hover { 
+            color: var(--water); 
+            border-color: var(--water); 
+            transform: translateY(-3px) scale(1.1);
+            box-shadow: 0 6px 15px rgba(0, 229, 255, 0.3);
+        }
+        .icon-btn:active {
+            transform: translateY(1px) scale(0.95);
+        }
+
+        #btn-fastforward.active-pulse {
+            color: var(--warning);
+            border-color: var(--warning);
+            animation: heartbeat 1.5s infinite cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        @keyframes heartbeat {
+            0% { transform: scale(1); box-shadow: 0 0 0 rgba(245, 158, 11, 0.4); }
+            50% { transform: scale(1.1); box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); }
+            100% { transform: scale(1); box-shadow: 0 0 0 rgba(245, 158, 11, 0); }
+        }
+
+        /* Game Header & Timer UI */
+        .game-header {
+            width: 100%;
+            /* Dynamically cap max-width so it matches the board visually */
+            max-width: min(100%, calc(100vh - 180px)); 
+            display: flex;
+            flex-direction: column;
+            gap: clamp(8px, 2vh, 15px);
+            margin-bottom: clamp(10px, 2vh, 20px);
+            background: var(--bg-panel);
+            padding: clamp(10px, 2vh, 16px) clamp(15px, 3vw, 20px);
+            border-radius: 16px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .stats {
+            display: flex;
+            gap: clamp(10px, 3vw, 20px);
+            font-size: clamp(0.9rem, 3.5vmin, 1.1rem);
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stats span { color: var(--text-main); }
+        .stats .stat-val { 
+            color: var(--water); 
+            text-shadow: 0 0 5px rgba(0,229,255,0.4); 
+            font-size: clamp(1.1rem, 4.5vmin, 1.3rem);
+        }
+        .header-controls { display: flex; gap: clamp(8px, 2vw, 12px); }
+
+        /* The Timer Bar */
+        .timer-container {
+            width: 100%;
+            background: var(--bg-dark);
+            height: clamp(12px, 2vh, 16px);
+            border-radius: 8px;
+            border: 1px solid var(--pipe-base);
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        #timer-bar {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, var(--water), #3b82f6);
+            border-radius: 6px;
+            transition: width 0.1s linear, background-color 0.3s;
+            box-shadow: 0 0 10px var(--water);
+        }
+        
+        #timer-bar.critical {
+            background: linear-gradient(90deg, var(--danger), #f43f5e);
+            box-shadow: 0 0 10px var(--danger);
+        }
+
+        .timer-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: clamp(0.6rem, 2vmin, 0.75rem);
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 1px 2px black;
+            letter-spacing: 1px;
+        }
+
+        /* Game Board Container */
+        .board-container {
+            width: 100%;
+            /* CORE MAGIC: Ensures the board never exceeds the screen height, allowing room for header */
+            max-width: min(100%, calc(100vh - 180px)); 
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+            background: #080c16;
+            border-radius: clamp(10px, 3vmin, 16px);
+            padding: clamp(4px, 1.5vmin, 10px);
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.9), 0 15px 35px rgba(0,0,0,0.6);
+            display: grid;
+            gap: clamp(2px, 0.8vmin, 6px);
+            border: 2px solid var(--pipe-dark);
+        }
+
+        /* Pipe Cell */
+        .cell {
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: clamp(4px, 1.5vmin, 10px);
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.05), inset 0 -2px 5px rgba(0,0,0,0.3);
+        }
+
+        .cell:hover:not(.locked) { 
+            background: rgba(0, 229, 255, 0.15); 
+        }
+        .cell:active:not(.locked) {
+            transform: scale(0.92);
+        }
+        
+        .cell.fixed { cursor: not-allowed; }
+        .cell.locked { cursor: not-allowed; border: 1px solid rgba(0, 229, 255, 0.3); }
+        .cell.empty { background: transparent; cursor: default; box-shadow: none; }
+
+        /* --- SVG Pipe Drawing --- */
+        .pipe-svg {
+            width: 100%; height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: center center;
+            z-index: 2;
+        }
+
+        /* SVG internal properties automatically scale beautifully because of viewBox */
+        .pipe-shell {
+            stroke: var(--pipe-base);
+            stroke-width: 28;
+            stroke-linecap: square;
+            stroke-linejoin: miter;
+            fill: none;
+            transition: stroke 0.3s;
+        }
+
+        .pipe-water {
+            stroke: var(--water);
+            stroke-width: 12;
+            stroke-linecap: round;
+            fill: none;
+            opacity: 0;
+            transition: opacity 0.4s ease, stroke-dashoffset 0.4s linear;
+        }
+
+        .flowing .pipe-shell { stroke: var(--pipe-dark); }
+        .flowing .pipe-water {
+            opacity: 1;
+            filter: drop-shadow(0 0 5px var(--water-bright)) drop-shadow(0 0 12px var(--water));
+            animation: waterPulse 1.5s infinite alternate ease-in-out;
+        }
+
+        @keyframes waterPulse {
+            0% { stroke-width: 10; filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 8px var(--water)); }
+            100% { stroke-width: 16; filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 18px var(--water)); }
+        }
+
+        .source-core { fill: var(--water); transition: fill 0.3s; }
+        .sink-core { fill: var(--pipe-base); transition: fill 0.3s; }
+        .source-bubble { fill: var(--water-bright); transform-origin: 50px 50px; opacity: 0; }
+        
+        .flowing .source-bubble { animation: bubbleAnim 1.2s infinite linear; }
+        .flowing.sink-reached .sink-core {
+            fill: var(--success);
+            filter: drop-shadow(0 0 20px var(--success));
+        }
+
+        @keyframes bubbleAnim {
+            0% { transform: scale(0.3); opacity: 1; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+
+        /* --- WATER LEAK MECHANIC --- */
+        .leak-drop {
+            position: absolute;
+            /* Changed to percentages to scale with the dynamic cell size */
+            width: 22%; height: 22%;
+            background: var(--danger);
+            border-radius: 50%;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+            box-shadow: 0 0 12px var(--danger);
+        }
+
+        /* Dynamic Keyframes for leaking (using % relative to the parent cell) */
+        .leaking-0 .leak-0 { animation: sprayTop 0.5s infinite linear; }
+        .leaking-1 .leak-1 { animation: sprayRight 0.5s infinite linear; }
+        .leaking-2 .leak-2 { animation: sprayBottom 0.5s infinite linear; }
+        .leaking-3 .leak-3 { animation: sprayLeft 0.5s infinite linear; }
+
+        @keyframes sprayTop {
+            0% { top: 10%; left: 50%; transform: translate(-50%, 0) scale(0.5); opacity: 1; }
+            100% { top: -50%; left: 50%; transform: translate(-50%, 0) scale(2); opacity: 0; }
+        }
+        @keyframes sprayRight {
+            0% { top: 50%; right: 10%; transform: translate(0, -50%) scale(0.5); opacity: 1; }
+            100% { top: 50%; right: -50%; transform: translate(0, -50%) scale(2); opacity: 0; }
+        }
+        @keyframes sprayBottom {
+            0% { bottom: 10%; left: 50%; transform: translate(-50%, 0) scale(0.5); opacity: 1; }
+            100% { bottom: -50%; left: 50%; transform: translate(-50%, 0) scale(2); opacity: 0; }
+        }
+        @keyframes sprayLeft {
+            0% { top: 50%; left: 10%; transform: translate(0, -50%) scale(0.5); opacity: 1; }
+            100% { top: 50%; left: -50%; transform: translate(0, -50%) scale(2); opacity: 0; }
+        }
+
+        /* Modals Settings */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(6px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+            z-index: 100;
+        }
+
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        
+        .modal-content {
+            background: var(--bg-panel);
+            padding: clamp(20px, 5vw, 35px) clamp(15px, 4vw, 25px);
+            border-radius: 24px;
+            text-align: center;
+            border: 2px solid var(--pipe-base);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            transform: scale(0.7) translateY(40px);
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: 90%; 
+            max-width: 420px;
+        }
+        
+        #modal-win .modal-content { border-color: var(--success); box-shadow: 0 0 40px rgba(16,185,129,0.2); }
+        #modal-lose .modal-content { border-color: var(--danger); box-shadow: 0 0 40px rgba(239,68,68,0.2); }
+
+        .modal-overlay.active .modal-content { transform: scale(1) translateY(0); }
+
+        .modal-content h2 { 
+            font-size: clamp(1.8rem, 6vmin, 2.2rem); 
+            margin-bottom: 10px; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+        }
+        #modal-win h2 { color: var(--success); text-shadow: 0 0 15px rgba(16,185,129,0.6); }
+        #modal-lose h2 { color: var(--danger); text-shadow: 0 0 15px rgba(239,68,68,0.6); }
+        
+        .modal-score { 
+            font-size: clamp(2.5rem, 8vmin, 3.5rem); 
+            color: var(--water); 
+            margin: clamp(10px, 3vh, 20px) 0; 
+            font-weight: 900; 
+            text-shadow: var(--water-glow); 
+        }
+        .modal-details { 
+            margin-bottom: clamp(15px, 4vh, 30px); 
+            color: var(--text-muted); 
+            font-size: clamp(0.9rem, 3.5vmin, 1.1rem); 
+            line-height: 1.8; 
+            background: var(--bg-dark); 
+            padding: 15px; 
+            border-radius: 12px;
+        }
+        .modal-details span { color: var(--text-main); font-weight: bold; font-size: clamp(1rem, 4vmin, 1.2rem);}
+        .modal-details .pen { color: var(--danger); text-shadow: 0 0 5px rgba(239,68,68,0.5); }
+
+        /* Scores Screen */
+        .score-list { 
+            width: 100%; 
+            background: var(--bg-panel); 
+            border-radius: 16px; 
+            padding: clamp(10px, 3vw, 20px); 
+            margin-bottom: 20px; 
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.3); 
+            /* Ensure the list scrolls if it gets too long on small screens */
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        .score-row { display: flex; justify-content: space-between; padding: 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: clamp(0.9rem, 3.5vmin, 1.1rem);}
+        .score-row:last-child { border-bottom: none; }
+        
+        .diff-tabs { display: flex; justify-content: center; width: 100%; background: #0f172a; border-radius: 12px; padding: 6px; margin-bottom: 25px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);}
+        .tab-btn { flex: 1; background: none; border: none; color: var(--text-muted); font-family: var(--font-main); font-weight: bold; font-size: clamp(0.9rem, 3.5vmin, 1.1rem); cursor: pointer; padding: 12px 0; border-radius: 10px; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .tab-btn.active { color: var(--text-main); background: var(--primary); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5); transform: scale(1.05);}
+
+        .header-row { width: 100%; display: flex; align-items: center; margin-bottom: clamp(15px, 4vh, 30px); }
+        .header-row h2 { flex-grow: 1; text-align: center; margin-right: clamp(30px, 8vw, 48px); color: var(--water); text-shadow: var(--water-glow); font-size: clamp(1.8rem, 6vmin, 2.2rem);}
+        .mt-20 { margin-top: clamp(15px, 4vh, 25px); }
+
+    </style>
+</head>
+<body>
+
+    <!-- MAIN MENU -->
+    <div id="screen-menu" class="screen active">
+        <h1 class="title title-font">Water<span>Pipe</span></h1>
+        <button class="btn primary" onclick="startGame('easy')">Easy (5x5)</button>
+        <button class="btn primary" onclick="startGame('medium')">Medium (7x7)</button>
+        <button class="btn primary" onclick="startGame('hard')">Hard (9x9)</button>
+        <button class="btn mt-20" onclick="showScreen('screen-scores'); loadScores('easy', document.querySelector('.tab-btn'));">High Scores</button>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="screen-game" class="screen">
+        <div class="game-header">
+            <div class="header-top">
+                <div class="stats">
+                    <div>Lv <span id="ui-level" class="stat-val">1</span></div>
+                    <div>Moves <span id="ui-moves" class="stat-val">0</span></div>
+                </div>
+                <div class="header-controls">
+                    <button class="icon-btn active-pulse" id="btn-fastforward" onclick="forceStartFlow()" title="Release Water Early!">
+                        <svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+                    </button>
+                    <button class="icon-btn" onclick="quitGame()" title="Home">
+                        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Dynamic Countdown / Flow Timer -->
+            <div class="timer-container">
+                <div id="timer-bar"></div>
+                <span class="timer-text" id="timer-text">Get Ready</span>
+            </div>
+        </div>
+        <div id="board" class="board-container"></div>
+    </div>
+
+    <!-- SCORES SCREEN -->
+    <div id="screen-scores" class="screen">
+        <div class="header-row">
+            <button class="icon-btn" onclick="showScreen('screen-menu')">
+                <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            </button>
+            <h2 class="title-font">Scores</h2>
+        </div>
+        
+        <div class="diff-tabs">
+            <button class="tab-btn active" onclick="loadScores('easy', this)">Easy</button>
+            <button class="tab-btn" onclick="loadScores('medium', this)">Medium</button>
+            <button class="tab-btn" onclick="loadScores('hard', this)">Hard</button>
+        </div>
+
+        <div class="score-list" id="score-container"></div>
+    </div>
+
+    <!-- LEVEL COMPLETE MODAL (WIN) -->
+    <div id="modal-win" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="title-font">Done</h2>
+            <div class="modal-score title-font" id="modal-score-val">0</div>
+            <div class="modal-details" id="modal-details-win">
+                Moves Taken: <span>0</span><br>
+                Time Bonus: <span>0</span>
+            </div>
+            <button class="btn primary" onclick="nextLevel()">Next Level</button>
+            <button class="btn" onclick="showScreen('screen-menu')">Main Menu</button>
+        </div>
+    </div>
+
+    <!-- LEVEL FAILED MODAL (LOSE) -->
+    <div id="modal-lose" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="title-font">Leaked</h2>
+            <div class="modal-score title-font" style="color: var(--danger); text-shadow: 0 0 15px rgba(239,68,68,0.8);">LEAK</div>
+            <div class="modal-details" id="modal-details-lose">
+                The water spilled out.<br>
+                You made <span class="pen">0</span> moves.
+            </div>
+            <button class="btn danger" onclick="retryLevel()">Retry Level</button>
+            <button class="btn" onclick="showScreen('screen-menu')">Main Menu</button>
+        </div>
+    </div>
+
+<script>
+    /* --- CONFIG & STATE --- */
+    const config = {
+        easy: { size: 5, obsCount: 0, complexity: 0.3, prepTime: 12000, flowSpeed: 700 },
+        medium: { size: 7, obsCount: 3, complexity: 0.6, prepTime: 10000, flowSpeed: 500 },
+        hard: { size: 9, obsCount: 6, complexity: 0.8, prepTime: 7000, flowSpeed: 300 }
+    };
+
+    let state = {
+        diff: 'easy',
+        level: 1,
+        moves: 0,
+        score: 0,
+        grid: [],
+        size: 5,
+        source: null,
+        sink: null,
+        phase: 'menu',
+        waterFront: [],
+        timerRemaining: 0,
+        timerTotal: 0
+    };
+
+    let countdownInterval = null;
+    let flowInterval = null;
+
+    /* --- PIPE PATH GENERATORS --- */
+    function getPaths(d) {
+        return `<path class="pipe-shell" d="${d}" /><path class="pipe-water" d="${d}" />`;
+    }
+
+    const pipeTypes = {
+        straight: { openings: [true, false, true, false], draw: () => getPaths("M 50 0 L 50 100") },
+        corner:   { openings: [false, true, true, false], draw: () => getPaths("M 100 50 Q 50 50 50 100") },
+        tshape:   { openings: [false, true, true, true], draw: () => getPaths("M 100 50 L 0 50") + getPaths("M 50 50 L 50 100") },
+        cross:    { openings: [true, true, true, true], draw: () => getPaths("M 50 0 L 50 100") + getPaths("M 0 50 L 100 50") },
+        source:   { openings: [false, true, false, false], draw: () => `
+            ${getPaths("M 50 50 L 100 50")}
+            <circle class="pipe-shell" cx="50" cy="50" r="28" />
+            <circle class="source-core" cx="50" cy="50" r="18" />
+            <circle class="source-bubble" cx="50" cy="50" r="10" />
+        `},
+        sink:     { openings: [false, false, false, true], draw: () => `
+            ${getPaths("M 50 50 L 0 50")}
+            <circle class="pipe-shell" cx="50" cy="50" r="24" />
+            <circle class="sink-core" cx="50" cy="50" r="14" />
+        `},
+        obstacle: { openings: [false, false, false, false], draw: () => `
+            <rect x="25" y="25" width="50" height="50" fill="var(--obstacle)" rx="8"/>
+            <line x1="35" y1="35" x2="65" y2="65" stroke="var(--pipe-dark)" stroke-width="8" stroke-linecap="round"/>
+            <line x1="65" y1="35" x2="35" y2="65" stroke="var(--pipe-dark)" stroke-width="8" stroke-linecap="round"/>
+        `},
+        empty:    { openings: [false, false, false, false], draw: () => '' }
+    };
+
+    const dirs = [
+        { dr: -1, dc: 0, outDir: 0, inDir: 2 }, // Top
+        { dr: 0, dc: 1, outDir: 1, inDir: 3 },  // Right
+        { dr: 1, dc: 0, outDir: 2, inDir: 0 },  // Bottom
+        { dr: 0, dc: -1, outDir: 3, inDir: 1 }  // Left
+    ];
+
+    /* --- UI NAVIGATION --- */
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        
+        if (id === 'screen-menu') {
+            clearInterval(countdownInterval);
+            clearInterval(flowInterval);
+            state.phase = 'menu';
+        }
+    }
+
+    function quitGame() { showScreen('screen-menu'); }
+
+    /* --- CORE GAME LOGIC --- */
+    function startGame(diff) {
+        state.diff = diff;
+        state.level = 1;
+        state.score = 0;
+        showScreen('screen-game');
+        generateLevel();
+    }
+
+    function nextLevel() {
+        state.level++;
+        document.getElementById('modal-win').classList.remove('active');
+        generateLevel();
+    }
+    
+    function retryLevel() {
+        document.getElementById('modal-lose').classList.remove('active');
+        generateLevel(); 
+    }
+
+    function generateLevel() {
+        clearInterval(countdownInterval);
+        clearInterval(flowInterval);
+        document.getElementById('modal-win').classList.remove('active');
+        document.getElementById('modal-lose').classList.remove('active');
+
+        const conf = config[state.diff];
+        state.size = conf.size;
+        state.moves = 0;
+        state.phase = 'planning';
+        
+        state.grid = Array(state.size).fill().map(() => Array(state.size).fill().map(() => ({
+            type: 'empty', rot: 0, flowing: false, fixed: false, element: null
+        })));
+
+        state.source = { r: 0, c: 0 };
+        state.sink = { r: state.size - 1, c: state.size - 1 };
+
+        let path = [];
+        while(path.length === 0) { path = findPath(state.source, state.sink); }
+
+        assignPathPipes(path);
+        fillRemaining(conf.obsCount, conf.complexity);
+        scrambleRotations();
+
+        renderBoard();
+        updateUI();
+        startCountdown();
+    }
+
+    /* Solvable Path Generation Algorithm */
+    function findPath(start, end) {
+        let bestPath = [];
+        let targetLength = Math.floor(state.size * state.size * 0.6); 
+
+        for (let attempt = 0; attempt < 50; attempt++) {
+            let visited = Array(state.size).fill().map(() => Array(state.size).fill(false));
+            let path = [];
+            
+            function dfs(r, c) {
+                if (r < 0 || r >= state.size || c < 0 || c >= state.size || visited[r][c]) return false;
+                visited[r][c] = true;
+                path.push({r, c});
+
+                if (r === end.r && c === end.c) return true;
+
+                let possibleMoves = [
+                    {dr: -1, dc: 0}, {dr: 0, dc: 1}, {dr: 1, dc: 0}, {dr: 0, dc: -1}
+                ].sort(() => Math.random() - 0.5);
+
+                for (let m of possibleMoves) {
+                    if (dfs(r + m.dr, c + m.dc)) return true;
+                }
+
+                path.pop();
+                return false;
+            }
+
+            if (dfs(start.r, start.c)) {
+                if (path.length > bestPath.length) bestPath = [...path];
+                if (path.length >= targetLength) return path;
+            }
+        }
+        return bestPath; 
+    }
+
+    function assignPathPipes(path) {
+        for (let i = 0; i < path.length; i++) {
+            let curr = path[i];
+            let cell = state.grid[curr.r][curr.c];
+
+            if (i === 0) {
+                let outDir = getDirection(curr, path[1]);
+                cell.type = 'source';
+                cell.rot = (outDir - 1 + 4) % 4; 
+                cell.fixed = true;
+            } else if (i === path.length - 1) {
+                let inDir = getDirection(path[i-1], curr);
+                cell.type = 'sink';
+                cell.rot = ((inDir + 2) % 4 - 3 + 4) % 4;
+                cell.fixed = true;
+            } else {
+                let inDir = getDirection(path[i-1], curr);
+                let outDir = getDirection(curr, path[i+1]);
+                let reqOpenings = [false, false, false, false];
+                reqOpenings[(inDir + 2) % 4] = true;
+                reqOpenings[outDir] = true;
+                
+                if (reqOpenings[0] && reqOpenings[2]) cell.type = 'straight';
+                else if (reqOpenings[1] && reqOpenings[3]) cell.type = 'straight';
+                else cell.type = 'corner';
+            }
+        }
+    }
+
+    function getDirection(from, to) {
+        if (to.r < from.r) return 0;
+        if (to.c > from.c) return 1;
+        if (to.r > from.r) return 2;
+        return 3;
+    }
+
+    function fillRemaining(obsCount, complexity) {
+        let placedObs = 0;
+        while(placedObs < obsCount) {
+            let r = Math.floor(Math.random() * state.size);
+            let c = Math.floor(Math.random() * state.size);
+            if (state.grid[r][c].type === 'empty') {
+                state.grid[r][c].type = 'obstacle';
+                state.grid[r][c].fixed = true;
+                placedObs++;
+            }
+        }
+
+        const fillerTypes = ['straight', 'corner', 'tshape', 'cross'];
+        for (let r = 0; r < state.size; r++) {
+            for (let c = 0; c < state.size; c++) {
+                if (state.grid[r][c].type === 'empty') {
+                    let types = complexity > 0.5 ? fillerTypes : ['straight', 'corner'];
+                    state.grid[r][c].type = types[Math.floor(Math.random() * types.length)];
+                }
+            }
+        }
+    }
+
+    function scrambleRotations() {
+        for (let r = 0; r < state.size; r++) {
+            for (let c = 0; c < state.size; c++) {
+                if (!state.grid[r][c].fixed && state.grid[r][c].type !== 'obstacle') {
+                    state.grid[r][c].rot = Math.floor(Math.random() * 4);
+                }
+            }
+        }
+    }
+
+    /* --- RENDERING --- */
+    function renderBoard() {
+        const board = document.getElementById('board');
+        board.style.gridTemplateColumns = `repeat(${state.size}, 1fr)`;
+        board.innerHTML = '';
+
+        for (let r = 0; r < state.size; r++) {
+            for (let c = 0; c < state.size; c++) {
+                let cellData = state.grid[r][c];
+                let cellDiv = document.createElement('div');
+                cellDiv.className = `cell ${cellData.type}`;
+                if (cellData.fixed) cellDiv.classList.add('fixed');
+                
+                cellDiv.innerHTML = `
+                    <div class="leak-drop leak-0"></div>
+                    <div class="leak-drop leak-1"></div>
+                    <div class="leak-drop leak-2"></div>
+                    <div class="leak-drop leak-3"></div>
+                `;
+
+                if (cellData.type !== 'empty') {
+                    let angle = cellData.rot * 90;
+                    cellDiv.innerHTML += `
+                        <svg viewBox="0 0 100 100" class="pipe-svg" style="transform: rotate(${angle}deg)">
+                            ${pipeTypes[cellData.type].draw()}
+                        </svg>
+                    `;
+                }
+
+                cellDiv.addEventListener('mousedown', (e) => { e.preventDefault(); handleRotate(r, c, cellDiv); });
+                cellDiv.addEventListener('touchstart', (e) => { e.preventDefault(); handleRotate(r, c, cellDiv); }, {passive: false});
+
+                board.appendChild(cellDiv);
+                cellData.element = cellDiv;
+            }
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('ui-level').innerText = state.level;
+        document.getElementById('ui-moves').innerText = state.moves;
+    }
+
+    /* --- TIMERS & ACTIVE FLOW SYSTEM --- */
+    function startCountdown() {
+        const conf = config[state.diff];
+        state.timerTotal = conf.prepTime;
+        state.timerRemaining = conf.prepTime;
+        
+        const bar = document.getElementById('timer-bar');
+        const text = document.getElementById('timer-text');
+        const btnFF = document.getElementById('btn-fastforward');
+        
+        bar.style.width = '100%';
+        bar.classList.remove('critical');
+        text.innerText = "PREPARING...";
+        btnFF.style.display = 'flex';
+        btnFF.classList.add('active-pulse');
+
+        countdownInterval = setInterval(() => {
+            state.timerRemaining -= 100;
+            let percent = (state.timerRemaining / state.timerTotal) * 100;
+            bar.style.width = `${Math.max(0, percent)}%`;
+            
+            if (percent < 30) bar.classList.add('critical');
+
+            if (state.timerRemaining <= 0) {
+                clearInterval(countdownInterval);
+                startFlowing();
+            }
+        }, 100);
+    }
+
+    function forceStartFlow() {
+        if (state.phase !== 'planning') return;
+        clearInterval(countdownInterval);
+        
+        let timeBonus = Math.floor((state.timerRemaining / 1000) * 10);
+        state.score += timeBonus;
+        
+        startFlowing();
+    }
+
+    function startFlowing() {
+        state.phase = 'flowing';
+        
+        const bar = document.getElementById('timer-bar');
+        const text = document.getElementById('timer-text');
+        const btnFF = document.getElementById('btn-fastforward');
+        
+        bar.style.width = '100%';
+        bar.style.background = 'var(--water)';
+        bar.style.transition = 'width 0.2s, background 0.3s';
+        text.innerText = "WATER RELEASED!";
+        btnFF.classList.remove('active-pulse');
+        btnFF.style.opacity = '0.5';
+
+        state.waterFront = [{r: state.source.r, c: state.source.c, fromDir: -1}];
+        let sourceCell = state.grid[state.source.r][state.source.c];
+        sourceCell.flowing = true;
+        sourceCell.element.classList.add('flowing', 'locked');
+
+        flowInterval = setInterval(advanceWaterStep, config[state.diff].flowSpeed);
+    }
+
+    /* --- INTERACTION --- */
+    function handleRotate(r, c, domElement) {
+        if (state.phase !== 'planning' && state.phase !== 'flowing') return;
+        
+        let cell = state.grid[r][c];
+        
+        if (cell.fixed || cell.type === 'obstacle' || cell.type === 'empty' || cell.flowing) return;
+
+        cell.rot = (cell.rot + 1) % 4;
+        state.moves++;
+        updateUI();
+        
+        let svg = domElement.querySelector('.pipe-svg');
+        if (svg) {
+            let currentTransform = svg.style.transform;
+            let currentAngle = parseInt(currentTransform.replace(/[^0-9\-]/g, '')) || 0;
+            svg.style.transform = `rotate(${currentAngle + 90}deg)`;
+        }
+    }
+
+    function getActiveOpenings(type, rot) {
+        let base = pipeTypes[type].openings;
+        let active = [false, false, false, false];
+        for (let i = 0; i < 4; i++) {
+            active[i] = base[(i - rot + 4) % 4];
+        }
+        return active;
+    }
+
+    /* --- STEP-BY-STEP WATER ALGORITHM --- */
+    function advanceWaterStep() {
+        if (state.phase !== 'flowing') return;
+
+        let nextFront = [];
+        let hasSpilled = false;
+        let reachedSink = false;
+
+        for (let pos of state.waterFront) {
+            let cell = state.grid[pos.r][pos.c];
+            let openings = getActiveOpenings(cell.type, cell.rot);
+
+            for (let i = 0; i < 4; i++) {
+                if (!openings[i]) continue; 
+
+                let d = dirs[i];
+                let nr = pos.r + d.dr;
+                let nc = pos.c + d.dc;
+
+                if (pos.fromDir === i) continue;
+
+                if (nr < 0 || nr >= state.size || nc < 0 || nc >= state.size) {
+                    triggerLeak(cell, i);
+                    hasSpilled = true;
+                    continue;
+                }
+
+                let neighbor = state.grid[nr][nc];
+
+                if (neighbor.flowing) continue;
+
+                if (neighbor.type === 'obstacle' || neighbor.type === 'empty') {
+                    triggerLeak(cell, i);
+                    hasSpilled = true;
+                    continue;
+                }
+
+                let nOpenings = getActiveOpenings(neighbor.type, neighbor.rot);
+                if (!nOpenings[d.inDir]) {
+                    triggerLeak(cell, i);
+                    hasSpilled = true;
+                    continue;
+                }
+
+                if (!nextFront.some(n => n.r === nr && n.c === nc)) {
+                    nextFront.push({ r: nr, c: nc, fromDir: d.inDir });
+                }
+
+                if (neighbor.type === 'sink') {
+                    reachedSink = true;
+                }
+            }
+        }
+
+        for (let next of nextFront) {
+            let nCell = state.grid[next.r][next.c];
+            nCell.flowing = true;
+            nCell.element.classList.add('flowing', 'locked');
+        }
+
+        state.waterFront = nextFront;
+
+        if (hasSpilled) {
+            clearInterval(flowInterval);
+            setTimeout(processLoss, 800); 
+        } else if (reachedSink) {
+            clearInterval(flowInterval);
+            let sinkCell = state.grid[state.sink.r][state.sink.c];
+            sinkCell.element.classList.add('sink-reached');
+            setTimeout(processWin, 800);
+        } else if (state.waterFront.length === 0) {
+            clearInterval(flowInterval);
+            setTimeout(processLoss, 800);
+        }
+    }
+
+    function triggerLeak(cell, direction) {
+        cell.element.classList.add(`leaking-${direction}`);
+    }
+
+    function processWin() {
+        state.phase = 'ended';
+        
+        let baseScore = state.size * 100;
+        let movePenalty = state.moves * 5;
+        let timeBonus = Math.floor((state.timerRemaining / 1000) * 10);
+        
+        let levelScore = Math.max(10, baseScore - movePenalty + timeBonus);
+        state.score += levelScore;
+
+        document.getElementById('modal-score-val').innerText = `+${levelScore} PTS`;
+        document.getElementById('modal-details-win').innerHTML = `
+            Moves Taken: <span>${state.moves}</span><br>
+            Time Bonus: <span style="color: var(--success)">+${timeBonus}</span>
+        `;
+        document.getElementById('modal-win').classList.add('active');
+        saveScore();
+    }
+
+    function processLoss() {
+        state.phase = 'ended';
+        document.getElementById('modal-details-lose').innerHTML = `
+            The water spilled out.<br>
+            You made <span class="pen">${state.moves}</span> moves.
+        `;
+        document.getElementById('modal-lose').classList.add('active');
+    }
+
+    /* --- SCORES & STORAGE --- */
+    function saveScore() {
+        let scores = JSON.parse(localStorage.getItem('activeFlowScores')) || { easy: [], medium: [], hard: [] };
+        scores[state.diff].push({ level: state.level, score: state.score, date: new Date().toLocaleDateString() });
+        scores[state.diff].sort((a, b) => b.score - a.score);
+        scores[state.diff] = scores[state.diff].slice(0, 10); 
+        localStorage.setItem('activeFlowScores', JSON.stringify(scores));
+    }
+
+    function loadScores(diff, btnRef) {
+        if(btnRef) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btnRef.classList.add('active');
+        }
+
+        let scores = JSON.parse(localStorage.getItem('activeFlowScores')) || { easy: [], medium: [], hard: [] };
+        let list = scores[diff];
+        let container = document.getElementById('score-container');
+        
+        if (list.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color: var(--text-muted); padding: 15px; font-weight: bold;">No records yet. Start plumbing!</div>';
+            return;
+        }
+
+        container.innerHTML = list.map((s, index) => `
+            <div class="score-row">
+                <span style="color: var(--text-muted); font-weight: bold;">#${index + 1}</span>
+                <span>Level ${s.level}</span>
+                <span style="color: var(--water); font-weight: 900; letter-spacing: 1px;">${s.score} pts</span>
+            </div>
+        `).join('');
+    }
+
+    window.onload = () => {
+        if (!localStorage.getItem('activeFlowScores')) {
+            localStorage.setItem('activeFlowScores', JSON.stringify({ easy: [], medium: [], hard: [] }));
+        }
+    };
+
+function showScreen(id) {
+    // BUG FIX: Hide any open modals before switching screens
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    
+    if (id === 'screen-menu') {
+        clearInterval(countdownInterval);
+        clearInterval(flowInterval);
+        state.phase = 'menu';
+    }
+}
+</script>
+</body>
+</html>
